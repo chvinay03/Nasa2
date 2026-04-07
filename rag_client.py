@@ -1,7 +1,17 @@
+import os
 import chromadb
 from chromadb.config import Settings
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+from openai import OpenAI
+
+
+def get_query_embedding(query: str) -> List[float]:
+    """Generate an OpenAI embedding for the query text."""
+    api_key = os.environ.get("CHROMA_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key, base_url="https://openai.vocareum.com/v1")
+    response = client.embeddings.create(model="text-embedding-3-small", input=query)
+    return response.data[0].embedding
 
 
 def discover_chroma_backends() -> Dict[str, Dict[str, str]]:
@@ -70,8 +80,10 @@ def retrieve_documents(collection, query: str, n_results: int = 3,
     if mission_filter and mission_filter.strip().lower() not in ["all", "none", "", "any"]:
         query_filter = {"mission": mission_filter}
 
+    query_embedding = get_query_embedding(query)
+
     results = collection.query(
-        query_texts=[query],
+        query_embeddings=[query_embedding],
         n_results=n_results,
         where=query_filter
     )
